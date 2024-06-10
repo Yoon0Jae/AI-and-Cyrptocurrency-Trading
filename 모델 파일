@@ -1,0 +1,44 @@
+library('stringr')
+library('glmnet')
+
+extract <- function(o, s) { 
+  index <- which(coef(o, s) != 0) 
+  data.frame(name=rownames(coef(o))[index], coef=coef(o, s)[index]) 
+}
+
+options(scipen=999)
+
+# 파일 이름을 고정
+filtered_filename <- '2024-05-01T000000-2024-05-01T235900-upbit-BTC-filtered-5-2-mid5.csv'
+model_filename <- '2024-05-01T235900-upbit-BTC-mid5-lasso-5s-2std.csv'
+
+# 절대 경로로 파일 경로 지정
+filtered_filepath = paste("C:/Users/yoony/Downloads/", filtered_filename, sep="")
+model_filepath = paste("C:/Users/yoony/Downloads/", model_filename, sep="")
+
+# 파일 이름과 경로 출력
+message("Using filtered data file: ", filtered_filepath)
+message("Output model file will be: ", model_filepath)
+
+# 파일이 존재하는지 확인
+if (!file.exists(filtered_filepath)) {
+  stop("Filtered data file does not exist: ", filtered_filepath)
+}
+
+# 데이터 파일 읽기
+filtered = read.csv(filtered_filepath)
+mid_std = sd(filtered$mid_price)
+message("Standard deviation of mid_price: ", round(mid_std, 0))
+
+filtered_no_time_mid = subset(filtered, select = -c(mid_price, timestamp))
+
+y = filtered_no_time_mid$return
+x = subset(filtered_no_time_mid, select = -c(return))
+
+x <- as.matrix(x)
+cv_fit <- cv.glmnet(x = x, y = y, alpha = 1, intercept = FALSE, lower.limits = 0, nfolds = 5) # lasso
+
+fit <- glmnet(x = x, y = y, alpha = 1, lambda = cv_fit$lambda.1se, intercept = FALSE, lower.limits = 0)
+df <- extract(fit, s = 0.1)
+df <- t(df)
+write.table(df, file = model_filepath, sep = ",", col.names = FALSE, row.names = FALSE, quote = FALSE)
