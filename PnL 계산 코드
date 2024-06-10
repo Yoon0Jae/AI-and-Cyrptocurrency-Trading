@@ -1,0 +1,38 @@
+# 필요한 라이브러리 로드
+library(dplyr)
+
+# 절대 경로 지정
+input_file <- "C:/Users/yoony/Downloads/ai-crypto-project-3-live-btc-krw.csv"
+output_file <- "C:/Users/yoony/Downloads/PnL_results.csv"
+
+# 파일 경로와 이름 출력
+message("Using input data file: ", input_file)
+message("Output result file will be: ", output_file)
+
+# 파일이 존재하는지 확인
+if (!file.exists(input_file)) {
+  stop("Input data file does not exist: ", input_file)
+}
+
+# 데이터 로드
+data <- read.csv(input_file)
+
+# 데이터 프레임 구조 확인
+str(data)
+
+# position 열 생성: side가 1이면 매수(+1), 0이면 매도(-1)
+data <- data %>%
+  mutate(position = ifelse(side == 1, 1, -1))
+
+# PnL 계산 (현재 가격 - 거래 가격) * 포지션
+data <- data %>%
+  mutate(PnL = (lead(price) - price) * position)
+
+# 누적 PnL 계산
+cumulative_PnL <- sum(data$PnL, na.rm = TRUE)
+
+# 누적 PnL 출력
+print(cumulative_PnL)
+
+# 결과 저장
+write.csv(data, output_file, row.names = FALSE)
